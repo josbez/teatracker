@@ -7,114 +7,180 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import TRexIllustration from '@/components/TRexIllustration';
 import { supabase } from '@/lib/supabase';
+import { colors, font, radius, spacing } from '@/lib/theme';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
+  const [sent, setSent] = useState(false);
 
-  const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert('Missing fields', 'Please enter your email and password.');
+  const handleSendLink = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      Alert.alert('Email required', 'Enter your email address to continue.');
       return;
     }
+
     setLoading(true);
-    if (mode === 'sign-in') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) Alert.alert('Sign in failed', error.message);
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        Alert.alert('Sign up failed', error.message);
-      } else {
-        Alert.alert('Check your email', 'A confirmation link has been sent to your inbox.');
-      }
-    }
+    const { error } = await supabase.auth.signInWithOtp({
+      email: trimmed,
+      options: {
+        // Configure this URL in your Supabase Auth settings → Redirect URLs
+        emailRedirectTo: 'ttracker://',
+      },
+    });
     setLoading(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      setSent(true);
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Text style={styles.logo}>🍵</Text>
-      <Text style={styles.title}>T-Tracker</Text>
-      <Text style={styles.subtitle}>
-        {mode === 'sign-in' ? 'Welcome back' : 'Create your account'}
-      </Text>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.inner}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.top}>
+          <TRexIllustration size={100} />
+          <Text style={styles.title}>T-Tracker</Text>
+          <Text style={styles.subtitle}>A serious tea journal.</Text>
+        </View>
 
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        placeholderTextColor="#BCAAA4"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        autoComplete="email"
-      />
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-        placeholderTextColor="#BCAAA4"
-        secureTextEntry
-        autoComplete={mode === 'sign-up' ? 'new-password' : 'password'}
-      />
-
-      <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
-        <Text style={styles.buttonText}>
-          {loading ? 'Loading…' : mode === 'sign-in' ? 'Sign In' : 'Sign Up'}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}>
-        <Text style={styles.toggle}>
-          {mode === 'sign-in'
-            ? "Don't have an account? Sign up"
-            : 'Already have an account? Sign in'}
-        </Text>
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+        {sent ? (
+          <View style={styles.sentState}>
+            <Text style={styles.sentTitle}>Check your email</Text>
+            <Text style={styles.sentBody}>
+              A magic link has been sent to{'\n'}
+              <Text style={styles.sentEmail}>{email.trim()}</Text>
+            </Text>
+            <TouchableOpacity onPress={() => setSent(false)}>
+              <Text style={styles.resendLink}>Use a different email</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.form}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              autoFocus
+              onSubmitEditing={handleSendLink}
+              returnKeyType="send"
+            />
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleSendLink}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Sending…' : 'Send Magic Link'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.hint}>
+              No password needed. We'll email you a one-tap link.
+            </Text>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FDF6EC',
-    padding: 24,
+    backgroundColor: colors.background,
   },
-  logo: { fontSize: 64, marginBottom: 8 },
-  title: { fontSize: 32, fontWeight: '700', color: '#3E2723', marginBottom: 4 },
-  subtitle: { fontSize: 16, color: '#8D6E63', marginBottom: 40 },
+  inner: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    gap: spacing.xl,
+  },
+  top: {
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  title: {
+    ...font.h1,
+    marginTop: spacing.sm,
+  },
+  subtitle: {
+    ...font.body,
+    color: colors.textMuted,
+  },
+  form: {
+    gap: spacing.sm,
+  },
+  inputLabel: {
+    ...font.label,
+    marginBottom: 2,
+  },
   input: {
-    width: '100%',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E0D5CC',
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
-    color: '#3E2723',
-    marginBottom: 12,
+    borderColor: colors.border,
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 13,
+    ...font.body,
+    color: colors.textPrimary,
   },
   button: {
-    width: '100%',
-    backgroundColor: '#5C4033',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    paddingVertical: 15,
+    borderRadius: radius.input,
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: spacing.xs,
   },
-  buttonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
-  toggle: { color: '#8D6E63', fontSize: 14 },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  hint: {
+    ...font.caption,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
+  sentState: {
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  sentTitle: {
+    ...font.h2,
+  },
+  sentBody: {
+    ...font.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  sentEmail: {
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  resendLink: {
+    ...font.body,
+    color: colors.accent,
+    marginTop: spacing.xs,
+  },
 });

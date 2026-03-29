@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -9,11 +10,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { colors, font, radius, spacing } from '@/lib/theme';
-import { Rating, TeaType } from '@/lib/types';
+import { Rating, Tea, TeaType } from '@/lib/types';
 
 const TEA_TYPES: TeaType[] = [
   'Green', 'Black', 'Oolong', 'White', 'Jasmine', 'Herbal', 'Rooibos', 'Pu-erh',
@@ -25,14 +26,47 @@ const RATINGS: { value: Rating; label: string }[] = [
   { value: '👎', label: 'Niet lekker' },
 ];
 
-export default function AddScreen() {
+export default function TeaDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+
+  const [tea, setTea] = useState<Tea | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Editable fields
   const [name, setName] = useState('');
   const [source, setSource] = useState('');
   const [type, setType] = useState<TeaType | ''>('');
   const [rating, setRating] = useState<Rating | null>(null);
   const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
-  const router = useRouter();
+
+  useEffect(() => {
+    const fetchTea = async () => {
+      const { data, error } = await supabase
+        .from('teas')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) {
+        Alert.alert('Error', 'Could not load tea.');
+        router.back();
+        return;
+      }
+
+      const t = data as Tea;
+      setTea(t);
+      setName(t.name);
+      setSource(t.source ?? '');
+      setType((t.type as TeaType) ?? '');
+      setRating(t.rating);
+      setNotes(t.notes ?? '');
+      setLoading(false);
+    };
+
+    fetchTea();
+  }, [id]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -41,44 +75,66 @@ export default function AddScreen() {
     }
 
     setSaving(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setSaving(false);
-      return;
-    }
-
-    const { error } = await supabase.from('teas').insert({
-      user_id: user.id,
-      name: name.trim(),
-      source: source.trim() || null,
-      type: type || null,
-      rating,
-      notes: notes.trim() || null,
-    });
+    const { error } = await supabase
+      .from('teas')
+      .update({
+        name: name.trim(),
+        source: source.trim() || null,
+        type: type || null,
+        rating,
+        notes: notes.trim() || null,
+      })
+      .eq('id', id);
 
     setSaving(false);
 
     if (error) {
       Alert.alert('Error', error.message);
     } else {
-      // Clear form and jump to journal
-      setName('');
-      setSource('');
-      setType('');
-      setRating(null);
-      setNotes('');
-      router.push('/(tabs)/journal');
+      router.back();
     }
   };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete tea',
+      `Remove "${tea?.name}" from your journal? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.from('teas').delete().eq('id', id);
+            router.back();
+          },
+        },
+      ]
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, styles.center]}>
+        <ActivityIndicator color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Add Tea</Text>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {tea?.name}
+        </Text>
+        <TouchableOpacity onPress={handleDelete} hitSlop={8}>
+          <Ionicons name="trash-outline" size={20} color={colors.danger} />
+        </TouchableOpacity>
       </View>
+
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -90,7 +146,6 @@ export default function AddScreen() {
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="e.g. Longjing Dragon Well"
             placeholderTextColor={colors.textMuted}
           />
         </View>
@@ -98,27 +153,14 @@ export default function AddScreen() {
         {/* Source */}
         <View style={styles.field}>
           <Text style={styles.label}>Source</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={[styles.input, styles.inputFlex]}
-              value={source}
-              onChangeText={setSource}
-              placeholder="URL or shop name"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity
-              style={styles.pasteButton}
-              onPress={async () => {
-                const { Clipboard } = await import('react-native');
-                const text = await Clipboard.getString();
-                if (text) setSource(text);
-              }}
-              hitSlop={8}
-            >
-              <Ionicons name="clipboard-outline" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
+          <TextInput
+            style={styles.input}
+            value={source}
+            onChangeText={setSource}
+            placeholder="URL or shop name"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+          />
         </View>
 
         {/* Type */}
@@ -178,7 +220,7 @@ export default function AddScreen() {
           onPress={handleSave}
           disabled={saving}
         >
-          <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Save Tea'}</Text>
+          <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Save Changes'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -190,14 +232,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    gap: spacing.md,
   },
-  title: {
-    ...font.h2,
+  headerTitle: {
+    ...font.h3,
+    flex: 1,
   },
   scroll: {
     padding: spacing.lg,
@@ -219,17 +269,6 @@ const styles = StyleSheet.create({
     ...font.body,
     color: colors.textPrimary,
   },
-  inputFlex: {
-    flex: 1,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  pasteButton: {
-    padding: spacing.sm,
-  },
   textarea: {
     height: 96,
     paddingTop: 13,
@@ -245,7 +284,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.chip,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: 'transparent',
   },
   chipActive: {
     backgroundColor: colors.primary,

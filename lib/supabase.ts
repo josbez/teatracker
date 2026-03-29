@@ -10,6 +10,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
+    // URLs are processed manually via expo-linking in the root layout
     detectSessionInUrl: false,
   },
 });
