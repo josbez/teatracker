@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "T-Tracker",
+    "slug": "t-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "ttracker",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ttracker.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FDF6EC"
+      },
+      "package": "com.ttracker.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
