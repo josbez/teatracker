@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Theemaas">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#243B1A">
+  <meta name="description" content="Persoonlijk theejournaal — houd bij welke theeën je hebt geproefd.">
+  <title>Theemaas Dagboek</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream:      #FAF7F2;
+      --paper:      #F2EDE4;
+      --green:      #243B1A;
+      --green-mid:  #3A5E28;
+      --green-soft: #EEF4E8;
+      --amber:      #B8883A;
+      --amber-soft: #FDF5E2;
+      --red:        #9E3030;
+      --red-soft:   #FAECEC;
+      --text:       #2C2420;
+      --muted:      #9A9088;
+      --border:     #E0D8CE;
+      --white:      #FFFFFF;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html { height: 100%; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      padding-bottom: 40px;
+    }
+
+    /* ── Header ── */
+    header {
+      position: relative;
+      background: var(--green);
+      color: var(--cream);
+      padding: env(safe-area-inset-top, 16px) 20px 20px;
+      padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
+      text-align: center;
+    }
+
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    header p {
+      font-size: 12px;
+      font-weight: 300;
+      opacity: 0.6;
+      margin-top: 3px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    /* ── Refresh button ── */
+    .refresh-btn {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(250,247,242,0.25);
+      background: rgba(250,247,242,0.08);
+      color: var(--cream);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.4s;
+    }
+    .refresh-btn:active { background: rgba(250,247,242,0.18); }
+    .refresh-btn.spinning { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Offline / pending banner ── */
+    .banner {
+      display: none;
+      background: var(--amber-soft);
+      color: var(--amber);
+      font-size: 12.5px;
+      font-weight: 500;
+      text-align: center;
+      padding: 8px 20px;
+      border-bottom: 1px solid var(--border);
+      letter-spacing: 0.2px;
+    }
+    .banner.show { display: block; }
+
+    /* ── Add form ── */
+    .add-section {
+      background: var(--paper);
+      border-bottom: 1px solid var(--border);
+      padding: 20px;
+    }
+
+    .section-label {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px;
+      color: var(--green);
+      margin-bottom: 14px;
+      font-style: italic;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 13px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      background: var(--white);
+      color: var(--text);
+      margin-bottom: 12px;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]::placeholder, textarea::placeholder { color: var(--border); }
+
+    input[type="text"]:focus, textarea:focus {
+      outline: none;
+      border-color: var(--green-mid);
+    }
+
+    textarea { height: 68px; resize: none; line-height: 1.5; }
+
+    /* ── Rating buttons ── */
+    .rating-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .rating-btn {
+      padding: 14px 6px 12px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--white);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+      user-select: none;
+    }
+
+    .rating-btn:active { transform: scale(0.96); }
+
+    .rating-btn .emoji { font-size: 26px; line-height: 1; }
+    .rating-btn .label { font-size: 11px; color: var(--muted); font-weight: 400; letter-spacing: 0.3px; }
+
+    .rating-btn.selected[data-rating="👍"] { border-color: var(--green-mid); background: var(--green-soft); }
+    .rating-btn.selected[data-rating="👎"] { border-color: var(--red);       background: var(--red-soft);   }
+    .rating-btn.selected[data-rating="😐"] { border-color: var(--amber);     background: var(--amber-soft); }
+
+    .rating-btn.selected .label { font-weight: 500; }
+    .rating-btn.selected[data-rating="👍"] .label { color: var(--green-mid); }
+    .rating-btn.selected[data-rating="👎"] .label { color: var(--red); }
+    .rating-btn.selected[data-rating="😐"] .label { color: var(--amber); }
+
+    /* ── Type chips ── */
+    .type-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+      margin-bottom: 8px;
+      letter-spacing: 0.3px;
+    }
+
+    .type-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+
+    .type-chip {
+      padding: 7px 13px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      color: var(--text);
+      user-select: none;
+    }
+
+    .type-chip:active { transform: scale(0.95); }
+
+    .type-chip.selected {
+      background: var(--green);
+      color: var(--cream);
+      border-color: var(--green);
+      font-weight: 500;
+    }
+
+    /* ── Type badge on card ── */
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+
+    .card-type {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+
+    /* ── Type filter row ── */
+    .filter-bar-type {
+      display: flex;
+      gap: 7px;
+      padding: 8px 20px 12px;
+      background: var(--cream);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .filter-bar-type::-webkit-scrollbar { display: none; }
+
+    /* ── Submit button ── */
+    .btn-save {
+      width: 100%;
+      padding: 15px;
+      background: var(--green);
+      color: var(--cream);
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: 0.2px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn-save:active  { transform: scale(0.99); opacity: 0.85; }
+    .btn-save:disabled { opacity: 0.45; }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex;
+      gap: 7px;
+      padding: 14px 20px;
+      background: var(--cream);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+
+    .filter-btn {
+      padding: 7px 15px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      color: var(--text);
+    }
+
+    .filter-btn.active {
+      background: var(--green);
+      color: var(--cream);
+      border-color: var(--green);
+      font-weight: 500;
+    }
+
+    /* ── Tea list ── */
+    .list-wrap { padding: 14px 20px 0; }
+
+    .count {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 300;
+      margin-bottom: 12px;
+      letter-spacing: 0.3px;
+      min-height: 15px;
+    }
+
+    .tea-card {
+      position: relative;
+      background: var(--white);
+      border-radius: 14px;
+      padding: 15px 16px;
+      margin-bottom: 9px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      animation: fadeSlide 0.25s ease both;
+      overflow: hidden;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-emoji { font-size: 30px; flex-shrink: 0; margin-top: 1px; line-height: 1; }
+
+    .card-body { flex: 1; min-width: 0; }
+
+    .card-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 3px;
+      word-break: break-word;
+    }
+
+    .card-note {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .card-date {
+      font-size: 11px;
+      color: var(--border);
+      font-weight: 300;
+    }
+
+    .card-pending {
+      display: inline-block;
+      font-size: 10px;
+      color: var(--amber);
+      font-weight: 500;
+      margin-left: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .card-del {
+      background: none;
+      border: none;
+      color: var(--border);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 2px 4px;
+      flex-shrink: 0;
+      transition: color 0.15s;
+      font-weight: 300;
+    }
+
+    .card-del:hover { color: var(--red); }
+
+    /* ── Inline delete confirm ── */
+    .card-confirm {
+      position: absolute;
+      inset: 0;
+      background: var(--red-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 16px;
+      animation: fadeSlide 0.15s ease both;
+    }
+    .card-confirm span {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--red);
+    }
+    .card-confirm .confirm-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .card-confirm button {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-confirm-yes { background: var(--red);   color: var(--cream); }
+    .btn-confirm-no  { background: var(--white);  color: var(--text); border: 1px solid var(--border) !important; }
+
+    /* ── Empty state ── */
+    .empty {
+      text-align: center;
+      padding: 56px 20px;
+      color: var(--muted);
+    }
+
+    .empty .e-icon { font-size: 44px; margin-bottom: 14px; opacity: 0.7; }
+    .empty p { font-size: 15px; font-weight: 300; line-height: 1.5; }
+
+    /* ── Skeleton loading ── */
+    .skeleton-card {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 15px 16px;
+      margin-bottom: 9px;
+      border: 1px solid var(--border);
+      display: flex;
+      gap: 13px;
+      align-items: center;
+    }
+    .sk { background: var(--paper); border-radius: 6px; position: relative; overflow: hidden; }
+    .sk::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+      animation: shimmer 1.3s infinite;
+    }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+    .sk-emoji { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; }
+    .sk-line  { height: 13px; }
+    .sk-line.w1 { width: 55%; margin-bottom: 8px; }
+    .sk-line.w2 { width: 80%; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      background: var(--green);
+      color: var(--cream);
+      padding: 11px 22px;
+      border-radius: 22px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 999;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 4px 20px rgba(36,59,26,0.3);
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🍵 Theemaas</h1>
+  <p>Persoonlijk theejournaal</p>
+  <button class="refresh-btn" id="refreshBtn" type="button" aria-label="Ververs lijst" title="Ververs">↻</button>
+</header>
+
+<div class="banner" id="banner"></div>
+
+<div class="add-section">
+  <div class="section-label">Thee toevoegen</div>
+
+  <input type="text" id="naam" placeholder="Naam van de thee…" autocomplete="off" autocorrect="off" spellcheck="false">
+
+  <div class="type-label">Soort</div>
+  <div class="type-chips" id="typeChips">
+    <button class="type-chip" type="button" data-type="Groen"   aria-pressed="false">🌿 Groen</button>
+    <button class="type-chip" type="button" data-type="Zwart"   aria-pressed="false">🖤 Zwart</button>
+    <button class="type-chip" type="button" data-type="Oolong"  aria-pressed="false">🌸 Oolong</button>
+    <button class="type-chip" type="button" data-type="Wit"     aria-pressed="false">🤍 Wit</button>
+    <button class="type-chip" type="button" data-type="Jasmijn" aria-pressed="false">🌺 Jasmijn</button>
+    <button class="type-chip" type="button" data-type="Kruiden" aria-pressed="false">🌱 Kruiden</button>
+    <button class="type-chip" type="button" data-type="Rooibos" aria-pressed="false">❤️ Rooibos</button>
+    <button class="type-chip" type="button" data-type="Pu-erh"  aria-pressed="false">🍂 Pu-erh</button>
+  </div>
+
+  <div class="rating-row" id="ratingRow">
+    <button class="rating-btn" type="button" data-rating="👍" aria-pressed="false">
+      <span class="emoji">👍</span><span class="label">Lekker</span>
+    </button>
+    <button class="rating-btn" type="button" data-rating="😐" aria-pressed="false">
+      <span class="emoji">😐</span><span class="label">Zo-zo</span>
+    </button>
+    <button class="rating-btn" type="button" data-rating="👎" aria-pressed="false">
+      <span class="emoji">👎</span><span class="label">Niet lekker</span>
+    </button>
+  </div>
+
+  <textarea id="notitie" placeholder="Smaaknotitie (optioneel)…"></textarea>
+
+  <button class="btn-save" id="saveBtn" type="button">Opslaan</button>
+</div>
+
+<div class="filter-bar" id="ratingFilterBar">
+  <button class="filter-btn active" type="button" data-filter="all">Alle</button>
+  <button class="filter-btn" type="button" data-filter="👍">👍 Lekker</button>
+  <button class="filter-btn" type="button" data-filter="😐">😐 Zo-zo</button>
+  <button class="filter-btn" type="button" data-filter="👎">👎 Niet lekker</button>
+</div>
+
+<div class="filter-bar-type" id="typeFilterBar">
+  <button class="filter-btn active" type="button" data-type-filter="all">Alle soorten</button>
+  <button class="filter-btn" type="button" data-type-filter="Groen">🌿 Groen</button>
+  <button class="filter-btn" type="button" data-type-filter="Zwart">🖤 Zwart</button>
+  <button class="filter-btn" type="button" data-type-filter="Oolong">🌸 Oolong</button>
+  <button class="filter-btn" type="button" data-type-filter="Wit">🤍 Wit</button>
+  <button class="filter-btn" type="button" data-type-filter="Jasmijn">🌺 Jasmijn</button>
+  <button class="filter-btn" type="button" data-type-filter="Kruiden">🌱 Kruiden</button>
+  <button class="filter-btn" type="button" data-type-filter="Rooibos">❤️ Rooibos</button>
+  <button class="filter-btn" type="button" data-type-filter="Pu-erh">🍂 Pu-erh</button>
+</div>
+
+<div class="list-wrap">
+  <div class="count" id="count"></div>
+  <div id="teaList" aria-live="polite"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  'use strict';
+
+  // ⚠️ Vervang dit door jouw eigen Apps Script URL.
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx7GxpM5wqeBOWm1vhyyqvdnQuiu42ruFOyACrSLrqzKOSeT-283U66AFASrWGo10p1og/exec';
+
+  const CACHE_KEY = 'theemaas:teas';
+  const QUEUE_KEY = 'theemaas:queue';
+  const FILTER_KEY = 'theemaas:filters';
+
+  let allTeas = [];
+  let queue = [];                 // pending writes while offline: {op:'add'|'delete', tea?, id?}
+  let selectedRating = null;
+  let selectedType   = null;
+  let currentFilter  = 'all';
+  let currentTypeFilter = 'all';
+  let confirmingId = null;        // card awaiting delete confirmation
+
+  // ── Storage helpers ──
+  function loadStore(key, fallback) {
+    try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+    catch (_) { return fallback; }
+  }
+  function saveStore(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (_) {}
+  }
+  const cacheTeas = () => saveStore(CACHE_KEY, allTeas);
+  const saveQueue = () => saveStore(QUEUE_KEY, queue);
+  const pendingIds = () => new Set(queue.filter(q => q.op === 'add').map(q => q.tea.id));
+
+  // ── Escape HTML ──
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ── Toast ──
+  let toastTimer = null;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+
+  // ── Banner (offline / pending) ──
+  function updateBanner() {
+    const banner = document.getElementById('banner');
+    const pending = queue.length;
+    if (!navigator.onLine && pending) {
+      banner.textContent = `Offline — ${pending} wijziging${pending !== 1 ? 'en' : ''} wachten op verbinding`;
+      banner.classList.add('show');
+    } else if (!navigator.onLine) {
+      banner.textContent = 'Offline — wijzigingen worden gesynchroniseerd zodra je weer online bent';
+      banner.classList.add('show');
+    } else if (pending) {
+      banner.textContent = `Synchroniseren… (${pending})`;
+      banner.classList.add('show');
+    } else {
+      banner.classList.remove('show');
+    }
+  }
+
+  // ── Selecties ──
+  function selectType(btn) {
+    const already = btn.classList.contains('selected');
+    document.querySelectorAll('.type-chip').forEach(b => {
+      b.classList.remove('selected'); b.setAttribute('aria-pressed', 'false');
+    });
+    if (!already) { btn.classList.add('selected'); btn.setAttribute('aria-pressed', 'true'); selectedType = btn.dataset.type; }
+    else selectedType = null;
+  }
+
+  function selectRating(btn) {
+    document.querySelectorAll('.rating-btn').forEach(b => {
+      b.classList.remove('selected'); b.setAttribute('aria-pressed', 'false');
+    });
+    btn.classList.add('selected');
+    btn.setAttribute('aria-pressed', 'true');
+    selectedRating = btn.dataset.rating;
+  }
+
+  // ── Filters ──
+  function setFilter(btn) {
+    document.querySelectorAll('#ratingFilterBar .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    persistFilters();
+    renderList();
+  }
+  function setTypeFilter(btn) {
+    document.querySelectorAll('#typeFilterBar .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTypeFilter = btn.dataset.typeFilter;
+    persistFilters();
+    renderList();
+  }
+  function persistFilters() {
+    saveStore(FILTER_KEY, { rating: currentFilter, type: currentTypeFilter });
+  }
+  function restoreFilters() {
+    const f = loadStore(FILTER_KEY, null);
+    if (!f) return;
+    currentFilter = f.rating || 'all';
+    currentTypeFilter = f.type || 'all';
+    document.querySelectorAll('#ratingFilterBar .filter-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.filter === currentFilter));
+    document.querySelectorAll('#typeFilterBar .filter-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.typeFilter === currentTypeFilter));
+  }
+
+  // ── Skeleton ──
+  function showSkeleton() {
+    const list = document.getElementById('teaList');
+    list.innerHTML = Array.from({ length: 4 }).map(() => `
+      <div class="skeleton-card">
+        <div class="sk sk-emoji"></div>
+        <div style="flex:1">
+          <div class="sk sk-line w1"></div>
+          <div class="sk sk-line w2"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── Renderen ──
+  function renderList() {
+    const pend = pendingIds();
+    let filtered = allTeas;
+    if (currentFilter !== 'all')     filtered = filtered.filter(t => t.rating === currentFilter);
+    if (currentTypeFilter !== 'all') filtered = filtered.filter(t => t.soort  === currentTypeFilter);
+
+    const list = document.getElementById('teaList');
+
+    if (filtered.length === 0) {
+      const blank = allTeas.length === 0;
+      list.innerHTML = `
+        <div class="empty">
+          <div class="e-icon">🍃</div>
+          <p>${blank ? 'Nog geen theeën — voeg je eerste toe!' : 'Geen theeën in deze categorie.'}</p>
+        </div>`;
+    } else {
+      list.innerHTML = filtered.map((t, i) => `
+        <div class="tea-card" data-id="${esc(t.id)}" style="animation-delay:${Math.min(i, 12) * 30}ms">
+          <div class="card-emoji">${esc(t.rating)}</div>
+          <div class="card-body">
+            <div class="card-name">${esc(t.naam)}</div>
+            <div class="card-meta">
+              ${t.soort ? `<span class="card-type">${esc(t.soort)}</span>` : ''}
+            </div>
+            ${t.notitie ? `<div class="card-note">${esc(t.notitie)}</div>` : ''}
+            <div class="card-date">${esc(t.datum)}${pend.has(t.id) ? '<span class="card-pending">• niet gesynct</span>' : ''}</div>
+          </div>
+          <button class="card-del" type="button" data-act="ask-del" data-id="${esc(t.id)}" aria-label="Verwijder ${esc(t.naam)}" title="Verwijder">×</button>
+        </div>`).join('');
+    }
+
+    const countEl = document.getElementById('count');
+    const n = filtered.length;
+    countEl.textContent = `${n} thee${n !== 1 ? 'ën' : ''}`;
+  }
+
+  // ── Inline delete confirm ──
+  function askDelete(id) {
+    confirmingId = id;
+    const card = document.querySelector(`.tea-card[data-id="${cssEsc(id)}"]`);
+    if (!card) return;
+    const bar = document.createElement('div');
+    bar.className = 'card-confirm';
+    bar.innerHTML = `
+      <span>Deze thee verwijderen?</span>
+      <div class="confirm-actions">
+        <button class="btn-confirm-no"  type="button" data-act="cancel-del">Nee</button>
+        <button class="btn-confirm-yes" type="button" data-act="confirm-del" data-id="${esc(id)}">Verwijder</button>
+      </div>`;
+    card.appendChild(bar);
+  }
+  function cancelDelete() {
+    confirmingId = null;
+    document.querySelectorAll('.card-confirm').forEach(el => el.remove());
+  }
+  function cssEsc(s) {
+    return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&');
+  }
+
+  // ── Backend ──
+  async function sendOp(payload) {
+    // Apps Script web app uses no-cors; we can't read the response, only whether the request left.
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  function enqueue(item) {
+    queue.push(item);
+    saveQueue();
+    updateBanner();
+  }
+
+  async function flushQueue() {
+    if (!queue.length || !navigator.onLine) { updateBanner(); return; }
+    updateBanner();
+    const items = queue.slice();
+    for (const item of items) {
+      try {
+        await sendOp(item.op === 'add'
+          ? { action: 'add', ...item.tea }
+          : { action: 'delete', id: item.id });
+        queue = queue.filter(q => q !== item);
+        saveQueue();
+        updateBanner();
+      } catch (_) {
+        break; // still offline; stop and retry later
+      }
+    }
+    if (queue.length === 0) toast('✓ Gesynchroniseerd');
+    updateBanner();
+  }
+
+  // ── Laden ──
+  async function loadTeas(isManual) {
+    const btn = document.getElementById('refreshBtn');
+    if (isManual) btn.classList.add('spinning');
+    if (allTeas.length === 0) showSkeleton();
+
+    try {
+      const res = await fetch(SCRIPT_URL, { cache: 'no-store' });
+      const data = await res.json();
+      const server = Array.isArray(data) ? data.slice().reverse() : [];
+
+      // Keep not-yet-synced local changes on top of the server truth.
+      const adds = queue.filter(q => q.op === 'add').map(q => q.tea);
+      const delIds = new Set(queue.filter(q => q.op === 'delete').map(q => q.id));
+      const seen = new Set(adds.map(t => t.id));
+      const merged = adds.concat(server.filter(t => !seen.has(t.id) && !delIds.has(t.id)));
+
+      allTeas = merged;
+      cacheTeas();
+      renderList();
+      if (isManual) toast('Bijgewerkt');
+    } catch (e) {
+      // Offline or backend down — keep showing the cached list.
+      if (allTeas.length === 0) {
+        document.getElementById('teaList').innerHTML =
+          '<div class="empty"><div class="e-icon">📡</div><p>Kan niet laden. Controleer je verbinding of de Apps Script-URL.</p></div>';
+        document.getElementById('count').textContent = '';
+      } else {
+        renderList();
+        if (isManual) toast('Offline — cache getoond');
+      }
+    } finally {
+      updateBanner();
+      setTimeout(() => btn.classList.remove('spinning'), 400);
+    }
+  }
+
+  // ── Toevoegen ──
+  async function addTea() {
+    const naamEl = document.getElementById('naam');
+    const notitieEl = document.getElementById('notitie');
+    const naam = naamEl.value.trim();
+    if (!naam)           { toast('Vul een naam in ☝️'); naamEl.focus(); return; }
+    if (!selectedRating) { toast('Kies een beoordeling'); return; }
+
+    const tea = {
+      id:      Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      naam,
+      soort:   selectedType || '',
+      rating:  selectedRating,
+      notitie: notitieEl.value.trim(),
+      datum:   new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+    };
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Opslaan…';
+
+    // Optimistic update first — feels instant and survives a flaky network.
+    allTeas.unshift(tea);
+    cacheTeas();
+
+    try {
+      await sendOp({ action: 'add', ...tea });
+      toast('✓ Thee opgeslagen');
+    } catch (e) {
+      enqueue({ op: 'add', tea });
+      toast('Offline — opgeslagen, sync volgt');
+    }
+
+    renderList();
+    naamEl.value = '';
+    notitieEl.value = '';
+    document.querySelectorAll('.rating-btn').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-pressed', 'false'); });
+    document.querySelectorAll('.type-chip').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-pressed', 'false'); });
+    selectedRating = null;
+    selectedType = null;
+    btn.disabled = false;
+    btn.textContent = 'Opslaan';
+  }
+
+  // ── Verwijderen ──
+  async function deleteTea(id) {
+    cancelDelete();
+    allTeas = allTeas.filter(t => t.id !== id);
+    cacheTeas();
+    renderList();
+
+    // If it was still queued as an unsynced add, just drop it — never sent.
+    const wasQueuedAdd = queue.some(q => q.op === 'add' && q.tea.id === id);
+    if (wasQueuedAdd) {
+      queue = queue.filter(q => !(q.op === 'add' && q.tea.id === id));
+      saveQueue();
+      updateBanner();
+      toast('Verwijderd');
+      return;
+    }
+
+    try {
+      await sendOp({ action: 'delete', id });
+      toast('Verwijderd');
+    } catch (e) {
+      enqueue({ op: 'delete', id });
+      toast('Offline — verwijderd, sync volgt');
+    }
+  }
+
+  // ── Event wiring ──
+  document.getElementById('typeChips').addEventListener('click', (e) => {
+    const b = e.target.closest('.type-chip'); if (b) selectType(b);
+  });
+  document.getElementById('ratingRow').addEventListener('click', (e) => {
+    const b = e.target.closest('.rating-btn'); if (b) selectRating(b);
+  });
+  document.getElementById('ratingFilterBar').addEventListener('click', (e) => {
+    const b = e.target.closest('.filter-btn'); if (b) setFilter(b);
+  });
+  document.getElementById('typeFilterBar').addEventListener('click', (e) => {
+    const b = e.target.closest('.filter-btn'); if (b) setTypeFilter(b);
+  });
+  document.getElementById('saveBtn').addEventListener('click', addTea);
+  document.getElementById('refreshBtn').addEventListener('click', () => loadTeas(true));
+  document.getElementById('naam').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addTea(); }
+  });
+
+  // List actions (delete confirm flow) via delegation.
+  document.getElementById('teaList').addEventListener('click', (e) => {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    const act = el.dataset.act;
+    if (act === 'ask-del')      { cancelDelete(); askDelete(el.dataset.id); }
+    else if (act === 'cancel-del')  cancelDelete();
+    else if (act === 'confirm-del')  deleteTea(el.dataset.id);
+  });
+
+  // Connectivity + freshness.
+  window.addEventListener('online',  () => { updateBanner(); flushQueue().then(() => loadTeas(false)); });
+  window.addEventListener('offline', updateBanner);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') loadTeas(false);
+  });
+
+  // ── Init ──
+  allTeas = loadStore(CACHE_KEY, []);
+  queue   = loadStore(QUEUE_KEY, []);
+  restoreFilters();
+  if (allTeas.length) renderList(); else showSkeleton();
+  updateBanner();
+  flushQueue();
+  loadTeas(false);
+
+  // ── Service worker (PWA) ──
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
