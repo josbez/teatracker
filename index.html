@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Theemaas">
@@ -31,8 +31,8 @@
       --red:        #A23A33;
       --red-soft:   #F8E9E6;
       --text:       #271F1A;
-      --muted:      #8C8378;
-      --faint:      #B7AEA1;
+      --muted:      #736A5E;
+      --faint:      #7A7064;
       --border:     #E6DCCD;
       --white:      #FFFFFF;
 
@@ -235,6 +235,58 @@
       background: var(--green); color: var(--cream);
       border-color: var(--green); box-shadow: var(--sh-sm);
     }
+
+    /* ── Search ── */
+    .search-wrap { position: relative; margin: 0 16px 10px; }
+    .search-ico {
+      position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+      font-size: 14px; opacity: 0.55; pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      padding: 11px 38px 11px 36px;
+      border: 1.5px solid var(--border); border-radius: var(--r-pill);
+      background: var(--white); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 14.5px;
+      -webkit-appearance: none; appearance: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .search-input::placeholder { color: #B6AC9C; }
+    .search-input:focus { outline: none; border-color: var(--green-mid); box-shadow: 0 0 0 4px var(--green-soft); }
+    .search-input::-webkit-search-decoration,
+    .search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
+    .search-clear {
+      position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+      width: 26px; height: 26px; border-radius: 50%;
+      border: none; background: var(--cream-2); color: var(--muted);
+      font-size: 16px; line-height: 1; cursor: pointer; display: grid; place-items: center;
+    }
+
+    /* ── List header / sort ── */
+    .list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+    .sort-control { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+    .sort-label { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; }
+    .sort-control select {
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+      color: var(--green); background: var(--white);
+      border: 1.5px solid var(--border); border-radius: var(--r-pill);
+      padding: 7px 30px 7px 13px; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%233A5E28' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+    }
+    .sort-control select:focus { outline: none; border-color: var(--green-mid); }
+
+    /* ── Wis filters (in lege staat) ── */
+    .e-clear {
+      margin-top: 18px;
+      background: var(--green); color: var(--cream);
+      border: none; border-radius: var(--r-pill);
+      padding: 10px 20px; font-family: 'DM Sans', sans-serif;
+      font-size: 13.5px; font-weight: 600; cursor: pointer;
+      transition: transform 0.12s, opacity 0.15s;
+    }
+    .e-clear:active { transform: scale(0.96); opacity: 0.9; }
 
     /* ── List ── */
     .list-wrap { padding: 16px 16px 0; }
@@ -498,8 +550,17 @@
       transition: transform 0.36s var(--ease-spring);
       z-index: 999; white-space: nowrap; pointer-events: none;
       box-shadow: var(--sh-lg);
+      display: inline-flex; align-items: center; gap: 14px;
     }
     .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.has-action { pointer-events: auto; }
+    .toast-action {
+      background: none; border: none; color: #CFE3BE;
+      font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 700;
+      letter-spacing: 0.2px; cursor: pointer;
+      padding: 0 0 0 14px; border-left: 1px solid rgba(250,246,239,0.25);
+    }
+    .toast-action[hidden] { display: none; }
 
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
@@ -539,6 +600,11 @@
 <div class="banner" id="banner"></div>
 
 <div class="filters">
+  <div class="search-wrap">
+    <span class="search-ico" aria-hidden="true">🔍</span>
+    <input type="search" id="search" class="search-input" placeholder="Zoek op naam of notitie…" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Zoek theeën">
+    <button class="search-clear" id="searchClear" type="button" aria-label="Wis zoekopdracht" hidden>×</button>
+  </div>
   <div class="seg-rating" id="ratingFilterBar" role="tablist" aria-label="Filter op beoordeling">
     <button class="active" type="button" data-filter="all">Alle</button>
     <button type="button" data-filter="👍" aria-label="Lekker">👍</button>
@@ -559,7 +625,18 @@
 </div>
 
 <div class="list-wrap">
-  <div class="count" id="count"></div>
+  <div class="list-head">
+    <div class="count" id="count"></div>
+    <label class="sort-control">
+      <span class="sort-label">Sorteer</span>
+      <select id="sort" aria-label="Sorteer theeën">
+        <option value="new">Nieuwste</option>
+        <option value="old">Oudste</option>
+        <option value="name">Naam A–Z</option>
+        <option value="rating">Beoordeling</option>
+      </select>
+    </label>
+  </div>
   <div id="teaList" aria-live="polite"></div>
 </div>
 
@@ -603,7 +680,10 @@
   <button class="btn-save" id="saveBtn" type="button" style="margin-top:20px">Opslaan in journaal</button>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+  <span id="toastMsg"></span>
+  <button class="toast-action" id="toastAction" type="button" hidden></button>
+</div>
 
 <script>
   'use strict';
@@ -620,6 +700,7 @@
     Jasmijn: '🌺', Kruiden: '🌱', Rooibos: '❤️', 'Pu-erh': '🍂'
   };
   const RATING_CLASS = { '👍': 'r-up', '😐': 'r-mid', '👎': 'r-down' };
+  const RATING_ORDER = { '👍': 0, '😐': 1, '👎': 2 };
 
   let allTeas = [];
   let queue = [];
@@ -627,8 +708,11 @@
   let selectedType   = null;
   let currentFilter  = 'all';
   let currentTypeFilter = 'all';
+  let currentSort = 'new';
+  let currentSearch = '';
   let confirmingId = null;
   let lastFocus = null;
+  let lastDeleted = null;
 
   // ── Storage ──
   function loadStore(key, fallback) {
@@ -651,13 +735,22 @@
 
   // ── Toast ──
   let toastTimer = null;
-  function toast(msg) {
+  function showToast(msg, actionLabel, actionFn) {
     const el = document.getElementById('toast');
-    el.textContent = msg;
+    const action = document.getElementById('toastAction');
+    document.getElementById('toastMsg').textContent = msg;
+    if (actionLabel && actionFn) {
+      action.textContent = actionLabel; action.hidden = false;
+      el.classList.add('has-action');
+      action.onclick = () => { el.classList.remove('show', 'has-action'); action.hidden = true; actionFn(); };
+    } else {
+      action.hidden = true; action.onclick = null; el.classList.remove('has-action');
+    }
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+    toastTimer = setTimeout(() => el.classList.remove('show', 'has-action'), actionLabel ? 5200 : 2400);
   }
+  function toast(msg) { showToast(msg, null, null); }
 
   // ── Banner ──
   function updateBanner() {
@@ -703,12 +796,32 @@
     currentTypeFilter = btn.dataset.typeFilter;
     persistFilters(); renderList();
   }
-  function persistFilters() { saveStore(FILTER_KEY, { rating: currentFilter, type: currentTypeFilter }); }
+  function persistFilters() { saveStore(FILTER_KEY, { rating: currentFilter, type: currentTypeFilter, sort: currentSort }); }
   function restoreFilters() {
     const f = loadStore(FILTER_KEY, null); if (!f) return;
-    currentFilter = f.rating || 'all'; currentTypeFilter = f.type || 'all';
+    currentFilter = f.rating || 'all'; currentTypeFilter = f.type || 'all'; currentSort = f.sort || 'new';
     document.querySelectorAll('#ratingFilterBar button').forEach(b => b.classList.toggle('active', b.dataset.filter === currentFilter));
     document.querySelectorAll('#typeFilterBar .type-pill').forEach(b => b.classList.toggle('active', b.dataset.typeFilter === currentTypeFilter));
+    const sortEl = document.getElementById('sort'); if (sortEl) sortEl.value = currentSort;
+  }
+  function clearFilters() {
+    currentFilter = 'all'; currentTypeFilter = 'all'; currentSearch = '';
+    const s = document.getElementById('search'); if (s) s.value = '';
+    document.getElementById('searchClear').hidden = true;
+    document.querySelectorAll('#ratingFilterBar button').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
+    document.querySelectorAll('#typeFilterBar .type-pill').forEach(b => b.classList.toggle('active', b.dataset.typeFilter === 'all'));
+    persistFilters(); renderList();
+  }
+
+  // ── Sorteren ──
+  function sortTeas(arr) {
+    const a = arr.slice();
+    switch (currentSort) {
+      case 'old':    return a.reverse();
+      case 'name':   return a.sort((x, y) => (x.naam || '').localeCompare(y.naam || '', 'nl', { sensitivity: 'base' }));
+      case 'rating': return a.sort((x, y) => (RATING_ORDER[x.rating] ?? 9) - (RATING_ORDER[y.rating] ?? 9));
+      default:       return a;
+    }
   }
 
   // ── Stats ──
@@ -752,19 +865,26 @@
   function renderList() {
     renderStats();
     const pend = pendingIds();
-    let filtered = allTeas;
+    let filtered = allTeas.slice();
     if (currentFilter !== 'all')     filtered = filtered.filter(t => t.rating === currentFilter);
     if (currentTypeFilter !== 'all') filtered = filtered.filter(t => t.soort  === currentTypeFilter);
+    if (currentSearch) {
+      const q = currentSearch.toLowerCase();
+      filtered = filtered.filter(t => (t.naam || '').toLowerCase().includes(q) || (t.notitie || '').toLowerCase().includes(q));
+    }
+    filtered = sortTeas(filtered);
 
     const list = document.getElementById('teaList');
 
     if (filtered.length === 0) {
       const blank = allTeas.length === 0;
+      const filtering = currentFilter !== 'all' || currentTypeFilter !== 'all' || currentSearch !== '';
       list.innerHTML = `
         <div class="empty">
           <div class="e-icon">${blank ? '🍃' : '🔍'}</div>
-          <p>${blank ? 'Je journaal is nog leeg.' : 'Geen theeën in deze selectie.'}</p>
-          ${blank ? '<p class="e-cta">Tik op + om je eerste thee toe te voegen</p>' : ''}
+          <p>${blank ? 'Je journaal is nog leeg.' : 'Geen theeën gevonden.'}</p>
+          ${blank ? '<p class="e-cta">Tik op + om je eerste thee toe te voegen</p>'
+                  : (filtering ? '<button class="e-clear" type="button" data-act="clear-filters">Wis filters</button>' : '')}
         </div>`;
     } else {
       list.innerHTML = filtered.map((t, i) => `
@@ -902,18 +1022,38 @@
     btn.disabled = false; btn.textContent = 'Opslaan in journaal';
   }
 
-  // ── Delete ──
+  // ── Delete (met undo) ──
   async function deleteTea(id) {
     cancelDelete();
-    allTeas = allTeas.filter(t => t.id !== id);
-    cacheTeas(); renderList();
+    const idx = allTeas.findIndex(t => t.id === id);
+    if (idx === -1) return;
+    const tea = allTeas[idx];
     const wasQueuedAdd = queue.some(q => q.op === 'add' && q.tea.id === id);
+
+    allTeas.splice(idx, 1);
+    cacheTeas(); renderList();
+
     if (wasQueuedAdd) {
       queue = queue.filter(q => !(q.op === 'add' && q.tea.id === id));
-      saveQueue(); updateBanner(); toast('Verwijderd'); return;
+      saveQueue(); updateBanner();
+    } else {
+      try { await sendOp({ action: 'delete', id }); }
+      catch (e) { enqueue({ op: 'delete', id }); }
     }
-    try { await sendOp({ action: 'delete', id }); toast('Verwijderd'); }
-    catch (e) { enqueue({ op: 'delete', id }); toast('Offline — verwijderd, sync volgt'); }
+
+    lastDeleted = { tea, idx, wasQueuedAdd };
+    showToast('Verwijderd', 'Ongedaan maken', undoDelete);
+  }
+
+  function undoDelete() {
+    if (!lastDeleted) return;
+    const { tea, idx, wasQueuedAdd } = lastDeleted;
+    lastDeleted = null;
+    allTeas.splice(Math.min(idx, allTeas.length), 0, tea);
+    cacheTeas(); renderList();
+    if (wasQueuedAdd) { enqueue({ op: 'add', tea }); }
+    else { sendOp({ action: 'add', ...tea }).catch(() => enqueue({ op: 'add', tea })); }
+    toast('Hersteld');
   }
 
   // ── Wiring ──
@@ -923,6 +1063,20 @@
   document.getElementById('typeFilterBar').addEventListener('click', e => { const b = e.target.closest('.type-pill'); if (b) setTypeFilter(b); });
   document.getElementById('saveBtn').addEventListener('click', addTea);
   document.getElementById('refreshBtn').addEventListener('click', () => loadTeas(true));
+  document.getElementById('search').addEventListener('input', e => {
+    currentSearch = e.target.value.trim();
+    document.getElementById('searchClear').hidden = currentSearch === '';
+    renderList();
+  });
+  document.getElementById('searchClear').addEventListener('click', () => {
+    const s = document.getElementById('search');
+    s.value = ''; currentSearch = '';
+    document.getElementById('searchClear').hidden = true;
+    renderList(); s.focus();
+  });
+  document.getElementById('sort').addEventListener('change', e => {
+    currentSort = e.target.value; persistFilters(); renderList();
+  });
   document.getElementById('fab').addEventListener('click', openSheet);
   document.getElementById('backdrop').addEventListener('click', closeSheet);
   document.querySelector('.sheet-handle').addEventListener('click', closeSheet);
@@ -937,9 +1091,10 @@
   document.getElementById('teaList').addEventListener('click', e => {
     const el = e.target.closest('[data-act]'); if (!el) return;
     const act = el.dataset.act;
-    if (act === 'ask-del')        { cancelDelete(); askDelete(el.dataset.id); }
-    else if (act === 'cancel-del')  cancelDelete();
-    else if (act === 'confirm-del') deleteTea(el.dataset.id);
+    if (act === 'ask-del')          { cancelDelete(); askDelete(el.dataset.id); }
+    else if (act === 'cancel-del')    cancelDelete();
+    else if (act === 'confirm-del')   deleteTea(el.dataset.id);
+    else if (act === 'clear-filters') clearFilters();
   });
 
   window.addEventListener('online',  () => { updateBanner(); flushQueue().then(() => loadTeas(false)); });

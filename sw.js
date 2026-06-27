@@ -2,7 +2,8 @@
    Caches the app shell so the app opens instantly and works offline.
    Data requests to the Apps Script backend are never cached (always live). */
 
-const CACHE = 'theemaas-v1';
+// Bump this version on every release so old cached assets are purged on activate.
+const CACHE = 'theemaas-v2';
 const SHELL = [
   './',
   './index.html',
