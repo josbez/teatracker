@@ -452,10 +452,14 @@
       transition: transform 0.42s var(--ease-spring);
     }
     .sheet.open { transform: translateX(-50%) translateY(0); }
+    .sheet.dragging { transition: none; }
     .sheet-handle {
-      width: 40px; height: 5px; border-radius: var(--r-pill);
-      background: var(--border); margin: 6px auto 16px;
+      width: 44px; height: 5px; border-radius: var(--r-pill);
+      background: var(--border); margin: 8px auto 16px;
+      cursor: grab; touch-action: none; position: relative;
     }
+    .sheet-handle::before { content: ""; position: absolute; inset: -14px -90px; }
+    .sheet.dragging .sheet-handle { cursor: grabbing; }
     .sheet-title {
       font-family: 'Playfair Display', serif;
       font-size: 21px; font-weight: 600; color: var(--green);
@@ -645,7 +649,7 @@
 <div class="backdrop" id="backdrop"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
   <div class="sheet-handle"></div>
-  <h2 class="sheet-title" id="sheetTitle">Nieuwe thee <em>proeven</em></h2>
+  <h2 class="sheet-title" id="sheetTitle">Nieuwe thee <em>toevoegen</em></h2>
 
   <input type="text" id="naam" class="name-input" placeholder="Naam van de thee…" autocomplete="off" autocorrect="off" spellcheck="false">
 
@@ -713,6 +717,7 @@
   let confirmingId = null;
   let lastFocus = null;
   let lastDeleted = null;
+  let sheetJustDragged = 0;
 
   // ── Storage ──
   function loadStore(key, fallback) {
@@ -1079,7 +1084,58 @@
   });
   document.getElementById('fab').addEventListener('click', openSheet);
   document.getElementById('backdrop').addEventListener('click', closeSheet);
-  document.querySelector('.sheet-handle').addEventListener('click', closeSheet);
+  document.querySelector('.sheet-handle').addEventListener('click', () => {
+    if (Date.now() - sheetJustDragged < 350) return; // ignore the click that ends a drag
+    closeSheet();
+  });
+
+  // Bottom-sheet drag-to-dismiss (native feel)
+  {
+    const sheet = document.getElementById('sheet');
+    const backdrop = document.getElementById('backdrop');
+    let active = false, decided = false, dragging = false, startY = 0, dy = 0, startT = 0, pid = null, onHandle = false;
+
+    sheet.addEventListener('pointerdown', (e) => {
+      if (!sheet.classList.contains('open')) return;
+      onHandle = !!e.target.closest('.sheet-handle');
+      // Let inputs/controls work normally unless the drag starts on the handle.
+      if (!onHandle && e.target.closest('input, textarea, select, button')) return;
+      active = true; decided = false; dragging = false;
+      startY = e.clientY; dy = 0; startT = Date.now(); pid = e.pointerId;
+    });
+    sheet.addEventListener('pointermove', (e) => {
+      if (!active) return;
+      const d = e.clientY - startY;
+      if (!decided) {
+        if (Math.abs(d) < 6) return;
+        // Only hijack as a drag when pulling down from the top (or the handle); otherwise it's a scroll.
+        if (d > 0 && (sheet.scrollTop <= 0 || onHandle)) {
+          decided = true; dragging = true;
+          sheet.classList.add('dragging');
+          sheet.style.overflowY = 'hidden';
+          backdrop.style.transition = 'none';
+          try { sheet.setPointerCapture(pid); } catch (_) {}
+        } else { active = false; return; }
+      }
+      dy = Math.max(0, d);
+      sheet.style.transform = `translateX(-50%) translateY(${dy}px)`;
+      backdrop.style.opacity = String(Math.max(0, 1 - dy / 420));
+    });
+    const end = () => {
+      if (!active) return; active = false;
+      if (!dragging) return; dragging = false;
+      sheet.classList.remove('dragging');
+      sheet.style.overflowY = '';
+      const dt = Date.now() - startT, v = dy / Math.max(dt, 1);
+      sheet.style.transform = '';
+      backdrop.style.transition = '';
+      backdrop.style.opacity = '';
+      sheetJustDragged = Date.now();
+      if (dy > 120 || v > 0.55) closeSheet(); // far enough or a quick flick
+    };
+    sheet.addEventListener('pointerup', end);
+    sheet.addEventListener('pointercancel', end);
+  }
   document.getElementById('naam').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTea(); } });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
