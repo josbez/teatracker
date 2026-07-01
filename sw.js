@@ -3,7 +3,7 @@
    Data requests to the Apps Script backend are never cached (always live). */
 
 // Bump this version on every release so old cached assets are purged on activate.
-const CACHE = 'theemaas-v3';
+const CACHE = 'theemaas-v4';
 const SHELL = [
   './',
   './index.html',

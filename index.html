@@ -178,6 +178,9 @@
     .stats-legend b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
     .stats-legend .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
     .dot.up { background: var(--green-mid); } .dot.mid { background: var(--amber); } .dot.down { background: var(--red); }
+    .stats-extra { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted); }
+    .stats-extra[hidden] { display: none; }
+    .stats-extra b { color: var(--green-mid); font-weight: 600; }
 
     /* ── Filters ── */
     .filters {
@@ -219,6 +222,11 @@
       -ms-overflow-style: none; scrollbar-width: none;
     }
     .type-row::-webkit-scrollbar { display: none; }
+    .type-row {
+      -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+      mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+    }
+    .type-row.at-end { -webkit-mask-image: none; mask-image: none; }
     .type-pill {
       flex-shrink: 0;
       padding: 7px 13px;
@@ -422,6 +430,7 @@
       transition: transform 0.4s var(--ease-spring), box-shadow 0.2s, opacity 0.25s;
     }
     .fab span { display: block; transition: transform 0.4s var(--ease-spring); }
+    .fab.hidden span { transform: rotate(135deg); }
     .fab:active { transform: translateX(calc(240px - 50% - 20px)) scale(0.92); }
     .fab.hidden { opacity: 0; pointer-events: none; transform: translateX(calc(240px - 50% - 20px)) scale(0.4); }
     @media (max-width: 520px) {
@@ -487,6 +496,8 @@
       box-shadow: 0 0 0 4px var(--green-soft);
     }
     .name-input { font-size: 17px; margin-bottom: 20px; }
+    .dup-hint { margin: -12px 2px 16px; font-size: 12.5px; color: var(--amber); font-weight: 500; }
+    .dup-hint[hidden] { display: none; }
     textarea { height: 76px; resize: none; line-height: 1.5; margin-top: 2px; }
 
     .type-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
@@ -599,6 +610,7 @@
     <span><span class="dot mid"></span><b id="legMid">0</b> zo-zo</span>
     <span><span class="dot down"></span><b id="legDown">0</b> niet</span>
   </div>
+  <div class="stats-extra" id="statsExtra" hidden></div>
 </section>
 
 <div class="banner" id="banner"></div>
@@ -609,11 +621,11 @@
     <input type="search" id="search" class="search-input" placeholder="Zoek op naam of notitie…" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Zoek theeën">
     <button class="search-clear" id="searchClear" type="button" aria-label="Wis zoekopdracht" hidden>×</button>
   </div>
-  <div class="seg-rating" id="ratingFilterBar" role="tablist" aria-label="Filter op beoordeling">
-    <button class="active" type="button" data-filter="all">Alle</button>
-    <button type="button" data-filter="👍" aria-label="Lekker">👍</button>
-    <button type="button" data-filter="😐" aria-label="Zo-zo">😐</button>
-    <button type="button" data-filter="👎" aria-label="Niet lekker">👎</button>
+  <div class="seg-rating" id="ratingFilterBar" role="group" aria-label="Filter op beoordeling">
+    <button class="active" type="button" data-filter="all" aria-pressed="true">Alle</button>
+    <button type="button" data-filter="👍" aria-label="Lekker" aria-pressed="false">👍</button>
+    <button type="button" data-filter="😐" aria-label="Zo-zo" aria-pressed="false">😐</button>
+    <button type="button" data-filter="👎" aria-label="Niet lekker" aria-pressed="false">👎</button>
   </div>
   <div class="type-row" id="typeFilterBar">
     <button class="type-pill active" type="button" data-type-filter="all">Alle soorten</button>
@@ -652,6 +664,7 @@
   <h2 class="sheet-title" id="sheetTitle">Nieuwe thee <em>toevoegen</em></h2>
 
   <input type="text" id="naam" class="name-input" placeholder="Naam van de thee…" autocomplete="off" autocorrect="off" spellcheck="false">
+  <div class="dup-hint" id="dupHint" role="status" hidden>Je hebt deze thee al geproefd — dubbel opslaan mag.</div>
 
   <div class="field-label">Soort</div>
   <div class="type-chips" id="typeChips">
@@ -718,6 +731,7 @@
   let lastFocus = null;
   let lastDeleted = null;
   let sheetJustDragged = 0;
+  let lastLoadAt = 0;
 
   // ── Storage ──
   function loadStore(key, fallback) {
@@ -756,6 +770,7 @@
     toastTimer = setTimeout(() => el.classList.remove('show', 'has-action'), actionLabel ? 5200 : 2400);
   }
   function toast(msg) { showToast(msg, null, null); }
+  function haptic(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (_) {} } }
 
   // ── Banner ──
   function updateBanner() {
@@ -786,12 +801,13 @@
     document.querySelectorAll('.rating-btn').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-pressed', 'false'); });
     btn.classList.add('selected'); btn.setAttribute('aria-pressed', 'true');
     selectedRating = btn.dataset.rating;
+    haptic(6);
   }
 
   // ── Filters ──
   function setFilter(btn) {
-    document.querySelectorAll('#ratingFilterBar button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('#ratingFilterBar button').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+    btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true');
     currentFilter = btn.dataset.filter;
     persistFilters(); renderList();
   }
@@ -805,7 +821,7 @@
   function restoreFilters() {
     const f = loadStore(FILTER_KEY, null); if (!f) return;
     currentFilter = f.rating || 'all'; currentTypeFilter = f.type || 'all'; currentSort = f.sort || 'new';
-    document.querySelectorAll('#ratingFilterBar button').forEach(b => b.classList.toggle('active', b.dataset.filter === currentFilter));
+    document.querySelectorAll('#ratingFilterBar button').forEach(b => { const on = b.dataset.filter === currentFilter; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     document.querySelectorAll('#typeFilterBar .type-pill').forEach(b => b.classList.toggle('active', b.dataset.typeFilter === currentTypeFilter));
     const sortEl = document.getElementById('sort'); if (sortEl) sortEl.value = currentSort;
   }
@@ -813,7 +829,7 @@
     currentFilter = 'all'; currentTypeFilter = 'all'; currentSearch = '';
     const s = document.getElementById('search'); if (s) s.value = '';
     document.getElementById('searchClear').hidden = true;
-    document.querySelectorAll('#ratingFilterBar button').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
+    document.querySelectorAll('#ratingFilterBar button').forEach(b => { const on = b.dataset.filter === 'all'; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     document.querySelectorAll('#typeFilterBar .type-pill').forEach(b => b.classList.toggle('active', b.dataset.typeFilter === 'all'));
     persistFilters(); renderList();
   }
@@ -848,6 +864,25 @@
     const fav = document.getElementById('statsFav');
     if (up > 0) { fav.hidden = false; fav.textContent = Math.round((up / n) * 100) + '% lekker'; }
     else fav.hidden = true;
+
+    // Favoriete soort: meest 'lekker', anders meest geproefd (FE-4)
+    const extra = document.getElementById('statsExtra');
+    const byType = {};
+    allTeas.forEach(t => {
+      if (!t.soort) return;
+      (byType[t.soort] = byType[t.soort] || { total: 0, up: 0 });
+      byType[t.soort].total++;
+      if (t.rating === '👍') byType[t.soort].up++;
+    });
+    const types = Object.keys(byType);
+    if (types.length) {
+      types.sort((a, b) => (byType[b].up - byType[a].up) || (byType[b].total - byType[a].total));
+      const fav = types[0], emoji = TYPE_EMOJI[fav] || '', favUp = byType[fav].up;
+      extra.hidden = false;
+      extra.innerHTML = favUp > 0
+        ? `Favoriet: <b>${emoji} ${esc(fav)}</b> · ${favUp}× 👍`
+        : `Meest geproefd: <b>${emoji} ${esc(fav)}</b> · ${byType[fav].total}×`;
+    } else { extra.hidden = true; }
 
     const bar = document.getElementById('statsBar').children;
     requestAnimationFrame(() => {
@@ -886,9 +921,9 @@
       const filtering = currentFilter !== 'all' || currentTypeFilter !== 'all' || currentSearch !== '';
       list.innerHTML = `
         <div class="empty">
-          <div class="e-icon">${blank ? '🍃' : '🔍'}</div>
-          <p>${blank ? 'Je journaal is nog leeg.' : 'Geen theeën gevonden.'}</p>
-          ${blank ? '<p class="e-cta">Tik op + om je eerste thee toe te voegen</p>'
+          <div class="e-icon">${blank ? '🍵' : '🔍'}</div>
+          <p>${blank ? 'Welkom bij je theejournaal.' : 'Geen theeën gevonden.'}</p>
+          ${blank ? '<p class="e-cta">Tik op de + rechtsonder en leg je eerste thee vast.</p>'
                   : (filtering ? '<button class="e-clear" type="button" data-act="clear-filters">Wis filters</button>' : '')}
         </div>`;
     } else {
@@ -949,6 +984,7 @@
   function resetForm() {
     document.getElementById('naam').value = '';
     document.getElementById('notitie').value = '';
+    document.getElementById('dupHint').hidden = true;
     document.querySelectorAll('.rating-btn').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-pressed', 'false'); });
     document.querySelectorAll('.type-chip').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-pressed', 'false'); });
     selectedRating = null; selectedType = null;
@@ -984,9 +1020,15 @@
       const adds = queue.filter(q => q.op === 'add').map(q => q.tea);
       const delIds = new Set(queue.filter(q => q.op === 'delete').map(q => q.id));
       const seen = new Set(adds.map(t => t.id));
-      allTeas = adds.concat(server.filter(t => !seen.has(t.id) && !delIds.has(t.id)));
-      cacheTeas(); renderList();
-      if (isManual) toast('Bijgewerkt');
+      const merged = adds.concat(server.filter(t => !seen.has(t.id) && !delIds.has(t.id)));
+      lastLoadAt = Date.now();
+      const changed = JSON.stringify(merged) !== JSON.stringify(allTeas);
+      allTeas = merged;
+      if (changed) cacheTeas();
+      // Only re-render (and re-animate) when something actually changed, so
+      // switching back to the tab doesn't re-cascade the whole list.
+      if (changed || document.querySelector('.skeleton-card')) renderList();
+      if (isManual) toast(changed ? 'Bijgewerkt' : 'Al up-to-date');
     } catch (e) {
       if (allTeas.length === 0) {
         document.getElementById('teaList').innerHTML =
@@ -1021,6 +1063,7 @@
     try { await sendOp({ action: 'add', ...tea }); toast('✓ Toegevoegd aan je journaal'); }
     catch (e) { enqueue({ op: 'add', tea }); toast('Offline — opgeslagen, sync volgt'); }
 
+    haptic(12);
     closeSheet();
     resetForm();
     renderList();
@@ -1036,7 +1079,7 @@
     const wasQueuedAdd = queue.some(q => q.op === 'add' && q.tea.id === id);
 
     allTeas.splice(idx, 1);
-    cacheTeas(); renderList();
+    cacheTeas(); renderList(); haptic(12);
 
     if (wasQueuedAdd) {
       queue = queue.filter(q => !(q.op === 'add' && q.tea.id === id));
@@ -1137,6 +1180,33 @@
     sheet.addEventListener('pointercancel', end);
   }
   document.getElementById('naam').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTea(); } });
+  document.getElementById('naam').addEventListener('input', () => {
+    const v = document.getElementById('naam').value.trim().toLowerCase();
+    const dup = !!v && allTeas.some(t => (t.naam || '').trim().toLowerCase() === v);
+    document.getElementById('dupHint').hidden = !dup;
+  });
+
+  // Scroll-fade affordance on the type filter row (UX-2)
+  const typeRow = document.getElementById('typeFilterBar');
+  function updateTypeFade() {
+    const atEnd = typeRow.scrollLeft + typeRow.clientWidth >= typeRow.scrollWidth - 2;
+    typeRow.classList.toggle('at-end', atEnd);
+  }
+  typeRow.addEventListener('scroll', updateTypeFade, { passive: true });
+  window.addEventListener('resize', updateTypeFade);
+
+  // Focus-trap inside the open sheet (A11Y-3)
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const sheet = document.getElementById('sheet');
+    if (!sheet.classList.contains('open')) return;
+    const nodes = sheet.querySelectorAll('input, textarea, select, button, [tabindex]:not([tabindex="-1"])');
+    const list = Array.from(nodes).filter(el => !el.disabled && el.offsetParent !== null);
+    if (!list.length) return;
+    const first = list[0], last = list[list.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (document.getElementById('sheet').classList.contains('open')) closeSheet();
@@ -1155,7 +1225,10 @@
 
   window.addEventListener('online',  () => { updateBanner(); flushQueue().then(() => loadTeas(false)); });
   window.addEventListener('offline', updateBanner);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadTeas(false); });
+  document.addEventListener('visibilitychange', () => {
+    // Don't reload on every quick tab-switch; only if the data is a bit stale.
+    if (document.visibilityState === 'visible' && Date.now() - lastLoadAt > 60000) loadTeas(false);
+  });
 
   // ── Init ──
   allTeas = loadStore(CACHE_KEY, []);
@@ -1163,6 +1236,7 @@
   restoreFilters();
   if (allTeas.length) renderList(); else showSkeleton();
   updateBanner();
+  updateTypeFade();
   flushQueue();
   loadTeas(false);
 
